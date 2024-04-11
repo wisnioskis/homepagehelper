@@ -90,7 +90,7 @@ update_container() {
     fi
 
     # Remove the image
-    docker image rm "$image_id"
+    docker image rm -f "$image_id"
 
     # Start docker-compose
     docker-compose up -d
