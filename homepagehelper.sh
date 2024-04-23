@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Created by Stanley Wisnioski -- wisnioskis | l3pr.org & hckr.fi
+# Version 1.2
 
 # Function to check if Docker is installed and up to date
 check_docker() {
@@ -52,8 +53,13 @@ install_dependencies() {
 
 # Function to create docker-compose.yml file
 create_docker_compose_file() {
+    echo "Checking if docker-compose.yml file exists..."
+    if [ -f /tmp/docker-compose.yml ]; then
+        echo "Moving existing docker-compose.yml file to docker-compose.yml.old"
+        mv /tmp/docker-compose.yml /tmp/docker-compose.yml.old
+    fi
     echo "Creating docker-compose.yml file..."
-cat > docker-compose.yml <<EOF
+    cat > /tmp/docker-compose.yml <<EOF
 version: "3.3"
 services:
   homepage:
@@ -64,6 +70,7 @@ services:
     volumes:
       - /Homepage/app/config:/app/config # Make sure your local config directory exists
       - /var/run/docker.sock:/var/run/docker.sock
+    restart: always
 EOF
 }
 
@@ -77,6 +84,10 @@ set_config_directory_ownership() {
 # Function to update Docker container
 update_container() {
     echo "Updating Docker container..."
+
+    # Update or create the docker-compose.yml file
+    create_docker_compose_file
+
     # Stop the running container
     docker container stop homepage
 
@@ -92,8 +103,11 @@ update_container() {
     # Remove the image
     docker image rm -f "$image_id"
 
+    # Pull the latest image
+    #docker pull
+
     # Start docker-compose
-    docker-compose up -d
+    docker-compose -f /tmp/docker-compose.yml up -d
 }
 
 # Function to remove all traces of the application
@@ -108,7 +122,7 @@ remove_application() {
             # Remove the container
             docker container rm homepage
             # Remove the docker-compose.yml file
-            rm -f docker-compose.yml
+            rm -f /tmp/docker-compose.yml
             # Run docker image list and get the image ID for "homepage"
             image_id=$(docker image ls | grep "homepage" | awk '{print $3}')
             # Check if the image ID is found
@@ -124,7 +138,7 @@ remove_application() {
             exit 0
             ;;
         *)
-            echo "Invalid choice. Exiting."
+            echo "Invalid choice. Exiting. Please press either y or n and then the enter key."
             exit 1
             ;;
     esac
@@ -137,7 +151,7 @@ if [ "$1" == "install" ]; then
     fi
     create_docker_compose_file
     set_config_directory_ownership
-    docker-compose up -d
+    docker-compose -f /tmp/docker-compose.yml up -d
     echo "Installation completed successfully."
 elif [ "$1" == "update" ]; then
     if ! check_docker || ! check_docker_compose; then
